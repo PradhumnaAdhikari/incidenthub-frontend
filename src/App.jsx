@@ -7,19 +7,22 @@ import {
   getIncidents,
   createIncident,
   updateIncident,
-  deleteIncident
+  deleteIncident,
 } from "./api";
 
 function App() {
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const loadIncidents = async () => {
     try {
       const data = await getIncidents();
       setIncidents(data);
-    } catch (error) {
-      console.error(error);
+      setError("");
+    } catch (err) {
+      console.error(err);
+      setError("Could not reach the backend. Check that the API is running.");
     } finally {
       setLoading(false);
     }
@@ -44,35 +47,73 @@ function App() {
     await loadIncidents();
   };
 
+  const count = (fn) => incidents.filter(fn).length;
+  const stats = [
+    { label: "Total", value: incidents.length, tone: "neutral" },
+    { label: "Open", value: count((i) => i.status === "open"), tone: "blue" },
+    {
+      label: "Critical",
+      value: count((i) => i.severity === "critical" && i.status !== "resolved"),
+      tone: "red",
+    },
+    { label: "Resolved", value: count((i) => i.status === "resolved"), tone: "green" },
+  ];
+
   return (
-    <div>
-      <h1>IncidentHub</h1>
+    <div className="shell">
+      <header className="hero">
+        <div className="brand">
+          <span className="logo">
+            <span className="pulse" />
+          </span>
+          <div>
+            <p className="eyebrow">Cloud Operations</p>
+            <h1>
+              Incident<span>Hub</span>
+            </h1>
+          </div>
+        </div>
+        <p className="tagline">
+          Detect. Triage. Resolve. One dashboard for every incident across your cloud services.
+        </p>
+      </header>
 
-      <p>
-        Cloud Incident Management Dashboard
-      </p>
+      <section className="stats">
+        {stats.map((s) => (
+          <div key={s.label} className={`stat ${s.tone}`}>
+            <span className="stat-value">{s.value}</span>
+            <span className="stat-label">{s.label}</span>
+          </div>
+        ))}
+      </section>
 
-      <hr />
+      {error && <div className="banner">{error}</div>}
 
-      <h2>Create Incident</h2>
+      <main className="layout">
+        <aside className="panel form-panel">
+          <h2>Report an incident</h2>
+          <p className="muted">Describe what's broken and how bad it is.</p>
+          <IncidentForm onIncidentCreated={handleIncidentCreated} />
+        </aside>
 
-      <IncidentForm
-        onIncidentCreated={handleIncidentCreated}
-      />
+        <section className="panel list-panel">
+          <h2>Live incidents</h2>
+          {loading ? (
+            <div className="skeletons">
+              <div className="skeleton" />
+              <div className="skeleton" />
+            </div>
+          ) : (
+            <IncidentList
+              incidents={incidents}
+              onStatusChange={handleStatusChange}
+              onDelete={handleDelete}
+            />
+          )}
+        </section>
+      </main>
 
-      <hr />
-
-      <h2>Incidents</h2>
-
-      {loading ? (
-        <p>Loading incidents...</p>
-      ) : (
-        <IncidentList
-          incidents={incidents}
-          onStatusChange={handleStatusChange}
-          onDelete={handleDelete}
-        />
-      )}
+      <footer className="footer">Built with React · Deployed on the cloud ☁️</footer>
     </div>
   );
 }
